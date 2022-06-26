@@ -11,6 +11,8 @@ public class Beverage : Aggregate
 
     public Beverage(Guid id, decimal price, string name, string imageUrl, bool available)
     {
+        if (Guid.Empty == id) throw new ArgumentException("Value cannot be empty.", nameof(id));
+        if (string.IsNullOrEmpty(name)) throw new ArgumentException("Value cannot be null or empty.", nameof(name));
         Id = id;
         PartitionKey = id.ToString();
         Price = price;
