@@ -1,17 +1,22 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
         <AzureFunctionsVersion>V4</AzureFunctionsVersion>
+        <OutputType>Exe</OutputType>
+        <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-      <UserSecretsId>trinkhalle.api</UserSecretsId>
-  </PropertyGroup>
+        <UserSecretsId>trinkhalle.api</UserSecretsId>
+    </PropertyGroup>
     <ItemGroup>
+        <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.8.1" />
         <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="10.0.1" />
-        <PackageReference Include="Microsoft.Azure.Functions.Extensions" Version="1.1.0" />
-        <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.ServiceBus" Version="5.5.1" />
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http" Version="3.0.13" />
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.ServiceBus" Version="5.4.0" />
+        <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="1.3.0" OutputItemType="Analyzer" />
+        <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="1.6.0" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="6.0.6" />
-        <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="4.1.1" />
+        <PackageReference Include="Microsoft.Extensions.Azure" Version="1.2.0" />
         <PackageReference Include="SonarAnalyzer.CSharp" Version="8.40.0.48530">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -25,5 +30,8 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <CopyToPublishDirectory>Never</CopyToPublishDirectory>
         </None>
+    </ItemGroup>
+    <ItemGroup>
+        <Using Include="System.Threading.ExecutionContext" Alias="ExecutionContext" />
     </ItemGroup>
 </Project>
