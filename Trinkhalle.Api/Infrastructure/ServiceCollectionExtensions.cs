@@ -6,7 +6,7 @@ namespace Trinkhalle.Api.Infrastructure;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddServiceBusEventSender<T>(this IServiceCollection services)
+    public static void AddServiceBusEventSender<T>(this IServiceCollection services)
     {
         services.AddScoped<IServicebusEventSender<T>>(c =>
         {
@@ -14,6 +14,5 @@ public static class ServiceCollectionExtensions
             var sender = client.CreateSender(typeof(T).Name);
             return new ServiceBusEventSender<T>(sender);
         });
-        return services;
     }
 }

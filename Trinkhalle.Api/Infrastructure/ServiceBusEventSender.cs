@@ -4,7 +4,6 @@ namespace Trinkhalle.Api.Infrastructure;
 
 #pragma warning disable S2326
 public class ServiceBusEventSender<T> : IServicebusEventSender<T>
-
 {
     public ServiceBusSender Sender { get; }
 
@@ -13,6 +12,7 @@ public class ServiceBusEventSender<T> : IServicebusEventSender<T>
         Sender = serviceBusSender;
     }
 }
+
 public interface IServicebusEventSender<T>
 {
     public ServiceBusSender Sender { get; }
