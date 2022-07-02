@@ -1,5 +1,7 @@
 using System.Net;
 using Azure.Messaging.ServiceBus;
+using FluentResults;
+using FluentValidation;
 using MediatR;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -11,7 +13,7 @@ public class CreateBeverage
 {
     private const string FunctionName = $"{nameof(CreateBeverage)}Function";
 
-    public record CreateBeverageCommand : IRequest<Guid>
+    public record CreateBeverageCommand : IRequest<Result<Guid>>
     {
         public string Name { get; init; } = null!;
         public decimal Price { get; init; }
@@ -28,6 +30,17 @@ public class CreateBeverage
         public bool Available { get; init; }
     }
 
+    public sealed class CreateBeverageCommandValidator : AbstractValidator<CreateBeverageCommand>
+    {
+        public CreateBeverageCommandValidator()
+        {
+            RuleFor(x => x.Available).NotEmpty();
+            RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+            RuleFor(x => x.Price).GreaterThan(0);
+            RuleFor(x => x.ImageUrl).NotNull();
+        }
+    }
+
     private readonly IMediator _mediator;
 
     public CreateBeverage(IMediator mediator)
@@ -36,20 +49,24 @@ public class CreateBeverage
     }
 
     [Function(FunctionName)]
-    public async Task<Guid> RunAsync(
+    public async Task<HttpResponseData> RunAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "BeverageManagement/CreateBeverage")]
         HttpRequestData requestData)
     {
         var publishBeverageCreatedEventCommand =
             await requestData.ReadFromJsonAsync<CreateBeverageCommand>();
 
-        if (publishBeverageCreatedEventCommand is null) return Guid.Empty;
-        var id = await _mediator.Send(publishBeverageCreatedEventCommand);
+        if (publishBeverageCreatedEventCommand is null) return requestData.CreateResponse(HttpStatusCode.Created);
 
-        return id;
+        var result = await _mediator.Send(publishBeverageCreatedEventCommand);
+
+        if (result.IsFailed) return await requestData.CreateResponseAsync(HttpStatusCode.BadRequest, result);
+
+        return await requestData.CreateResponseAsync(HttpStatusCode.OK, result);
     }
 
-    public class CreateBeverageCommandHandler : IRequestHandler<CreateBeverageCommand, Guid>
+
+    public class CreateBeverageCommandHandler : IRequestHandler<CreateBeverageCommand, Result<Guid>>
     {
         private readonly IServicebusEventSender<BeverageCreatedEvent> _eventSender;
 
@@ -58,7 +75,7 @@ public class CreateBeverage
             _eventSender = eventSender;
         }
 
-        public async Task<Guid> Handle(CreateBeverageCommand request, CancellationToken cancellationToken)
+        public async Task<Result<Guid>> Handle(CreateBeverageCommand request, CancellationToken cancellationToken)
         {
             var beverageCreatedEvent = new BeverageCreatedEvent()
             {
@@ -69,7 +86,7 @@ public class CreateBeverage
             await _eventSender.Sender.SendMessageAsync(new ServiceBusMessage(new BinaryData(beverageCreatedEvent)),
                 cancellationToken);
 
-            return beverageCreatedEvent.Id;
+            return Result.Ok(beverageCreatedEvent.Id);
         }
     }
 }

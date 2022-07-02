@@ -1,4 +1,5 @@
 using System.Reflection;
+using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Azure;
@@ -16,6 +17,8 @@ var host = new HostBuilder()
 
         serviceCollection
             .AddMediatR(Assembly.GetExecutingAssembly())
+            .AddValidatorsFromAssembly(Assembly.GetExecutingAssembly())
+            .AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>))
             .AddDbContext<TrinkhalleContext>(
                 options => options.UseCosmos(
                     connectionString: config.GetConnectionString("CosmosDb"),
