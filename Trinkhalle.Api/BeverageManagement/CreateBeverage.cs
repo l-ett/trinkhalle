@@ -36,7 +36,7 @@ public class CreateBeverage
         {
             RuleFor(x => x.Available).NotEmpty();
             RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
-            RuleFor(x => x.Price).GreaterThan(0);
+            RuleFor(x => x.Price).GreaterThanOrEqualTo(0);
             RuleFor(x => x.ImageUrl).NotNull();
         }
     }
