@@ -7,7 +7,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Trinkhalle.Api.BeverageManagement;
-using Trinkhalle.Api.Infrastructure;
+using Trinkhalle.Api.BeverageManagement.UseCases;
+using Trinkhalle.Api.Shared;
+using Trinkhalle.Api.Shared.Extensions;
+using Trinkhalle.Api.Shared.Infrastructure;
 
 namespace Trinkhalle.Api;
 
@@ -21,12 +24,16 @@ public static class Startup
             .AddMediatR(Assembly.GetExecutingAssembly())
             .AddValidatorsFromAssembly(Assembly.GetExecutingAssembly())
             .AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>))
-            .AddDbContext<TrinkhalleContext>(
+            .AddDbContext<TrinkhalleDbContext>(
                 options => options.UseCosmos(
                     connectionString: config.GetConnectionString("CosmosDb"),
                     databaseName: "Trinkhalle"))
-            .AddAzureClients(builder => { builder.AddServiceBusClient(config.GetConnectionString("AzureServiceBus")); });
+            .AddAzureClients(builder =>
+            {
+                builder.AddServiceBusClient(config.GetConnectionString("AzureServiceBus"));
+            });
 
-        serviceCollection.AddServiceBusEventSender<CreateBeverage.BeverageCreatedEvent>();
+        serviceCollection.AddServiceBusEventSender<BeverageCreatedEvent>();
+        serviceCollection.AddServiceBusEventSender<BeveragePurchasedEvent>();
     }
 }

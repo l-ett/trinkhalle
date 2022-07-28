@@ -4,7 +4,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Trinkhalle.Api.BeverageManagement;
-using Trinkhalle.Api.Infrastructure;
+using Trinkhalle.Api.BeverageManagement.UseCases;
+using Trinkhalle.Api.Shared;
+using Trinkhalle.Api.Shared.Infrastructure;
 
 namespace Trinkhalle.Api.Tests.BeverageManagement;
 
@@ -29,7 +31,7 @@ public class BeverageManagementFixture
         var services = new ServiceCollection();
         Startup.ConfigureServices(context, services);
 
-        services.AddScoped(sc => A.Fake<IServicebusEventSender<CreateBeverage.BeverageCreatedEvent>>());
+        services.AddScoped(sc => A.Fake<IServicebusEventSender<BeverageCreatedEvent>>());
         _rootContainer = services.BuildServiceProvider();
         _scopeFactory = _rootContainer.GetService<IServiceScopeFactory>()!;
     }
@@ -40,7 +42,7 @@ public class BeverageManagementFixture
         {
             var mediator = sp.GetService<IMediator>();
 
-            return mediator.Send(request);
+            return mediator!.Send(request);
         });
     }
 
@@ -50,7 +52,7 @@ public class BeverageManagementFixture
         {
             var mediator = sp.GetService<IMediator>();
 
-            return mediator.Send(request);
+            return mediator!.Send(request);
         });
     }
 

@@ -1,6 +1,7 @@
 using FluentAssertions;
 using FluentValidation.TestHelper;
 using Trinkhalle.Api.BeverageManagement;
+using Trinkhalle.Api.BeverageManagement.UseCases;
 
 namespace Trinkhalle.Api.Tests.BeverageManagement;
 
@@ -18,7 +19,7 @@ public class CreateBeverageTests : IClassFixture<BeverageManagementFixture>
     {
         //arrange
         var validator = new CreateBeverage.CreateBeverageCommandValidator();
-        var command = new CreateBeverage.CreateBeverageCommand() { };
+        var command = new CreateBeverageCommand() { };
 
         //act
         var result = validator.TestValidate(command);
@@ -34,7 +35,7 @@ public class CreateBeverageTests : IClassFixture<BeverageManagementFixture>
     {
         //arrange
         var validator = new CreateBeverage.CreateBeverageCommandValidator();
-        var command = new CreateBeverage.CreateBeverageCommand() { Price = -1 };
+        var command = new CreateBeverageCommand() { Price = -1 };
 
         //act
         var result = validator.TestValidate(command);
@@ -48,7 +49,7 @@ public class CreateBeverageTests : IClassFixture<BeverageManagementFixture>
     {
         //arrange
         var validator = new CreateBeverage.CreateBeverageCommandValidator();
-        var command = new CreateBeverage.CreateBeverageCommand()
+        var command = new CreateBeverageCommand()
             { Available = true, Name = "Test", Price = 5, ImageUrl = "abc.com" };
 
         //act
@@ -63,7 +64,7 @@ public class CreateBeverageTests : IClassFixture<BeverageManagementFixture>
     {
         //arrange
         var validator = new CreateBeverage.CreateBeverageCommandValidator();
-        var command = new CreateBeverage.CreateBeverageCommand()
+        var command = new CreateBeverageCommand()
             { Available = true, Name = "Test", Price = 0, ImageUrl = "abc.com" };
 
         //act
@@ -77,7 +78,7 @@ public class CreateBeverageTests : IClassFixture<BeverageManagementFixture>
     public async Task CreateBeverageCommandHandler_ValidCommand_ShouldReturnId()
     {
         //arrange
-        var command = new CreateBeverage.CreateBeverageCommand()
+        var command = new CreateBeverageCommand()
             { Available = true, Name = "Test", Price = 0, ImageUrl = "abc.com" };
 
         //act
