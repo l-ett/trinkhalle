@@ -77,7 +77,6 @@ public class StoreInvoice
                 });
             invoice.AddInvoiceElements(invoiceElements);
 
-
             _dbContext.Invoices.Add(invoice);
 
             await _dbContext.SaveChangesAsync(cancellationToken);
