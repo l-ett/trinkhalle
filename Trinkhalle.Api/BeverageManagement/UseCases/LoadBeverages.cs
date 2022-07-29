@@ -11,6 +11,7 @@ namespace Trinkhalle.Api.BeverageManagement.UseCases;
 
 public record LoadBeveragesModel
 {
+    public Guid Id { get; init; }
     public string Name { get; init; } = null!;
     public decimal Price { get; init; }
     public string ImageUrl { get; init; } = null!;
@@ -61,7 +62,7 @@ public class LoadBeverages
             var beverages = await _dbDbContext.Beverages.ToListAsync(cancellationToken: cancellationToken);
 
             var beveragesResponse = beverages.Select(b => new LoadBeveragesModel()
-                { Available = b.Available, Name = b.Name, Price = b.Price, ImageUrl = b.ImageUrl });
+                { Id = b.Id, Available = b.Available, Name = b.Name, Price = b.Price, ImageUrl = b.ImageUrl });
 
             return Result.Ok(beveragesResponse);
         }

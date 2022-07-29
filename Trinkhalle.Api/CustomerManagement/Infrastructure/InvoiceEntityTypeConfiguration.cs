@@ -4,9 +4,9 @@ using Trinkhalle.Api.CustomerManagement.Domain;
 
 namespace Trinkhalle.Api.CustomerManagement.Infrastructure;
 
-public class UserEntityTypeConfiguration : IEntityTypeConfiguration<User>
+public class InvoiceEntityTypeConfiguration : IEntityTypeConfiguration<Invoice>
 {
-    public void Configure(EntityTypeBuilder<User> builder)
+    public void Configure(EntityTypeBuilder<Invoice> builder)
     {
         builder
             .HasPartitionKey(b => b.PartitionKey)

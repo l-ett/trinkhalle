@@ -61,21 +61,26 @@ public class StoreOrder
 
     public class PurchaseBeverageCommandHandler : IRequestHandler<StoreOrderCommand, Result>
     {
-        private readonly TrinkhalleDbContext _dbDbContext;
+        private readonly TrinkhalleDbContext _dbContext;
 
         public PurchaseBeverageCommandHandler(TrinkhalleDbContext dbContext)
         {
-            _dbDbContext = dbContext;
+            _dbContext = dbContext;
         }
 
         public async Task<Result> Handle(StoreOrderCommand request, CancellationToken cancellationToken)
         {
+            var existingOrder = await _dbContext.Beverages.FindAsync(new object?[] { request.OrderId },
+                cancellationToken: cancellationToken);
+
+            if (existingOrder is not null) return Result.Ok();
+
             var order = new Order(request.OrderId, request.UserId, request.BeverageId, request.BeverageName,
                 request.PurchasedAt, request.BeveragePrice);
-            
-            _dbDbContext.Orders.Add(order);
 
-            await _dbDbContext.SaveChangesAsync(cancellationToken);
+            _dbContext.Orders.Add(order);
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
 
             return Result.Ok();
         }

@@ -2,6 +2,12 @@ using Trinkhalle.Api.Shared.Abstractions;
 
 namespace Trinkhalle.Api.CustomerManagement.Domain;
 
+public enum OrderStatus
+{
+    Open,
+    Closed
+}
+
 public class Order : Aggregate
 {
     public Order(Guid id, Guid userId, Guid beverageId, string beverageName, DateTimeOffset purchasedAt, decimal price)
@@ -13,6 +19,7 @@ public class Order : Aggregate
         PurchasedAt = purchasedAt;
         Price = price;
         PartitionKey = userId.ToString();
+        Status = OrderStatus.Open;
     }
 
     public Guid UserId { get; init; }
@@ -20,4 +27,10 @@ public class Order : Aggregate
     public string BeverageName { get; init; }
     public DateTimeOffset PurchasedAt { get; init; }
     public decimal Price { get; init; }
+    public OrderStatus Status { get; private set; }
+
+    public void CloseOrder()
+    {
+        Status = OrderStatus.Closed;
+    }
 }

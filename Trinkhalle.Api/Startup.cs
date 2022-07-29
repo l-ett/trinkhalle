@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Trinkhalle.Api.BeverageManagement;
 using Trinkhalle.Api.BeverageManagement.UseCases;
+using Trinkhalle.Api.CustomerManagement.UseCases;
 using Trinkhalle.Api.Shared;
 using Trinkhalle.Api.Shared.Extensions;
 using Trinkhalle.Api.Shared.Infrastructure;
@@ -35,5 +36,6 @@ public static class Startup
 
         serviceCollection.AddServiceBusEventSender<BeverageCreatedEvent>();
         serviceCollection.AddServiceBusEventSender<BeveragePurchasedEvent>();
+        serviceCollection.AddServiceBusEventSender<InvoiceCreatedEvent>();
     }
 }
