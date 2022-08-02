@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentResults;
 using FluentValidation;
 using MediatR;
@@ -9,7 +6,7 @@ using Trinkhalle.DrinkManagement.Domain;
 using Trinkhalle.DrinkManagement.Infrastructure;
 using Trinkhalle.Shared.Events;
 
-namespace Trinkhalle.DrinkManagement.UseCases;
+namespace Trinkhalle.DrinkManagement.Features;
 
 public record StoreDrinkCommand : IRequest<Result>
 {

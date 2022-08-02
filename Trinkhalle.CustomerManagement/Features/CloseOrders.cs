@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Trinkhalle.CustomerManagement.Infrastructure;
 using Trinkhalle.Shared.Events;
 
-namespace Trinkhalle.CustomerManagement.UseCases;
+namespace Trinkhalle.CustomerManagement.Features;
 
 public record CloseOrdersCommand : IRequest<Result>
 {

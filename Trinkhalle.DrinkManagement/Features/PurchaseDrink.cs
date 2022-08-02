@@ -5,7 +5,7 @@ using Microsoft.Azure.Functions.Worker;
 using Trinkhalle.DrinkManagement.Infrastructure;
 using Trinkhalle.Shared.Events;
 
-namespace Trinkhalle.DrinkManagement.UseCases;
+namespace Trinkhalle.DrinkManagement.Features;
 
 public record PurchaseDrinkCommand : IRequest<Result>
 {

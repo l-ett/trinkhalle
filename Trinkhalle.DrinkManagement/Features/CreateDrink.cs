@@ -9,7 +9,7 @@ using Trinkhalle.Shared.Events;
 using Trinkhalle.Shared.Extensions;
 using Trinkhalle.Shared.Infrastructure;
 
-namespace Trinkhalle.DrinkManagement.UseCases;
+namespace Trinkhalle.DrinkManagement.Features;
 
 public record CreateDrinkCommand : IRequest<Result<Guid>>
 {

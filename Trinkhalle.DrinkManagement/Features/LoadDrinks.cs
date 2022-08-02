@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Trinkhalle.DrinkManagement.Infrastructure;
 using Trinkhalle.Shared.Extensions;
 
-namespace Trinkhalle.DrinkManagement.UseCases;
+namespace Trinkhalle.DrinkManagement.Features;
 
 public record LoadBeveragesModel
 {

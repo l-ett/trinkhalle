@@ -1,6 +1,6 @@
 using FluentAssertions;
 using FluentValidation.TestHelper;
-using Trinkhalle.DrinkManagement.UseCases;
+using Trinkhalle.DrinkManagement.Features;
 
 namespace Trinkhalle.DrinkManagement.Tests;
 

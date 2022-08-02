@@ -6,7 +6,7 @@ using Trinkhalle.CustomerManagement.Domain;
 using Trinkhalle.CustomerManagement.Infrastructure;
 using Trinkhalle.Shared.Events;
 
-namespace Trinkhalle.CustomerManagement.UseCases;
+namespace Trinkhalle.CustomerManagement.Features;
 
 public record StoreOrderCommand : IRequest<Result>
 {

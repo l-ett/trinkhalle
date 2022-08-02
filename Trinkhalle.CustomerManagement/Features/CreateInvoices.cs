@@ -9,13 +9,11 @@ using Trinkhalle.CustomerManagement.Infrastructure;
 using Trinkhalle.Shared.Events;
 using Trinkhalle.Shared.Infrastructure;
 
-namespace Trinkhalle.CustomerManagement.UseCases;
+namespace Trinkhalle.CustomerManagement.Features;
 
 public record CreateInvoicesCommand : IRequest<Result>
 {
 }
-
-
 
 public class CreateInvoices
 {
