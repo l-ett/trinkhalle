@@ -11,21 +11,13 @@ using Trinkhalle.Shared.Infrastructure;
 
 namespace Trinkhalle.DrinkManagement.Features;
 
-public record CreateDrinkCommand : IRequest<Result<Guid>>
+public class CreateDrinkTrigger
 {
-    public string Name { get; init; } = null!;
-    public decimal Price { get; init; }
-    public string ImageUrl { get; init; } = null!;
-    public bool Available { get; init; }
-}
-
-public class CreateDrink
-{
-    private const string FunctionName = $"{nameof(CreateDrink)}Function";
+    private const string FunctionName = $"CreateDrinkFunction";
 
     private readonly IMediator _mediator;
 
-    public CreateDrink(IMediator mediator)
+    public CreateDrinkTrigger(IMediator mediator)
     {
         _mediator = mediator;
     }
@@ -45,39 +37,47 @@ public class CreateDrink
 
         return await requestData.CreateResponseAsync(HttpStatusCode.Created, result);
     }
+}
 
-    public sealed class CreateDrinkCommandValidator : AbstractValidator<CreateDrinkCommand>
+public record CreateDrinkCommand : IRequest<Result<Guid>>
+{
+    public string Name { get; init; } = null!;
+    public decimal Price { get; init; }
+    public string ImageUrl { get; init; } = null!;
+    public bool Available { get; init; }
+}
+
+public sealed class CreateDrinkCommandValidator : AbstractValidator<CreateDrinkCommand>
+{
+    public CreateDrinkCommandValidator()
     {
-        public CreateDrinkCommandValidator()
-        {
-            RuleFor(x => x.Available).NotEmpty();
-            RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
-            RuleFor(x => x.Price).GreaterThanOrEqualTo(0);
-            RuleFor(x => x.ImageUrl).NotNull();
-        }
+        RuleFor(x => x.Available).NotEmpty();
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Price).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.ImageUrl).NotNull();
+    }
+}
+
+public class CreateDrinkCommandHandler : IRequestHandler<CreateDrinkCommand, Result<Guid>>
+{
+    private readonly IServicebusEventSender<DrinkCreatedEvent> _eventSender;
+
+    public CreateDrinkCommandHandler(IServicebusEventSender<DrinkCreatedEvent> eventSender)
+    {
+        _eventSender = eventSender;
     }
 
-    public class CreateDrinkCommandHandler : IRequestHandler<CreateDrinkCommand, Result<Guid>>
+    public async Task<Result<Guid>> Handle(CreateDrinkCommand request, CancellationToken cancellationToken)
     {
-        private readonly IServicebusEventSender<DrinkCreatedEvent> _eventSender;
-
-        public CreateDrinkCommandHandler(IServicebusEventSender<DrinkCreatedEvent> eventSender)
+        var drinkCreatedEvent = new DrinkCreatedEvent()
         {
-            _eventSender = eventSender;
-        }
+            Id = Guid.NewGuid(), Available = request.Available, Name = request.Name,
+            Price = request.Price, ImageUrl = request.ImageUrl
+        };
 
-        public async Task<Result<Guid>> Handle(CreateDrinkCommand request, CancellationToken cancellationToken)
-        {
-            var drinkCreatedEvent = new DrinkCreatedEvent()
-            {
-                Id = Guid.NewGuid(), Available = request.Available, Name = request.Name,
-                Price = request.Price, ImageUrl = request.ImageUrl
-            };
+        await _eventSender.Sender.SendMessageAsync(new ServiceBusMessage(new BinaryData(drinkCreatedEvent)),
+            cancellationToken);
 
-            await _eventSender.Sender.SendMessageAsync(new ServiceBusMessage(new BinaryData(drinkCreatedEvent)),
-                cancellationToken);
-
-            return Result.Ok(drinkCreatedEvent.Id);
-        }
+        return Result.Ok(drinkCreatedEvent.Id);
     }
 }

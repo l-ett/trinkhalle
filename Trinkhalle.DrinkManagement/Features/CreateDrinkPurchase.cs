@@ -12,19 +12,13 @@ using Trinkhalle.Shared.Infrastructure;
 
 namespace Trinkhalle.DrinkManagement.Features;
 
-public record CreateDrinkPurchaseCommand : IRequest<Result<Guid>>
+public class CreateDrinkPurchaseTrigger
 {
-    public Guid BeverageId { get; set; }
-    public Guid UserId { get; set; }
-}
-
-public class CreateDrinkPurchase
-{
-    private const string FunctionName = $"{nameof(CreateDrinkPurchase)}Function";
+    private const string FunctionName = $"CreateDrinkPurchaseFunction";
 
     private readonly IMediator _mediator;
 
-    public CreateDrinkPurchase(IMediator mediator)
+    public CreateDrinkPurchaseTrigger(IMediator mediator)
     {
         _mediator = mediator;
     }
@@ -44,50 +38,56 @@ public class CreateDrinkPurchase
 
         return await requestData.CreateResponseAsync(HttpStatusCode.OK, result);
     }
+}
 
-    public sealed class CreateBeveragePurchaseCommandValidator : AbstractValidator<CreateDrinkPurchaseCommand>
+public record CreateDrinkPurchaseCommand : IRequest<Result<Guid>>
+{
+    public Guid BeverageId { get; set; }
+    public Guid UserId { get; set; }
+}
+
+public sealed class CreateBeveragePurchaseCommandValidator : AbstractValidator<CreateDrinkPurchaseCommand>
+{
+    public CreateBeveragePurchaseCommandValidator()
     {
-        public CreateBeveragePurchaseCommandValidator()
-        {
-            RuleFor(x => x.BeverageId).NotEmpty();
-            RuleFor(x => x.UserId).NotEmpty();
-        }
+        RuleFor(x => x.BeverageId).NotEmpty();
+        RuleFor(x => x.UserId).NotEmpty();
+    }
+}
+
+public class CreateBeveragePurchaseCommandHandler : IRequestHandler<CreateDrinkPurchaseCommand, Result<Guid>>
+{
+    private readonly IServicebusEventSender<DrinkPurchasedEvent> _eventSender;
+    private readonly DrinkManagementDbContext _dbContext;
+
+    public CreateBeveragePurchaseCommandHandler(DrinkManagementDbContext dbContext,
+        IServicebusEventSender<DrinkPurchasedEvent> eventSender)
+    {
+        _eventSender = eventSender;
+        _dbContext = dbContext;
     }
 
-    public class CreateBeveragePurchaseCommandHandler : IRequestHandler<CreateDrinkPurchaseCommand, Result<Guid>>
+    public async Task<Result<Guid>> Handle(CreateDrinkPurchaseCommand request,
+        CancellationToken cancellationToken)
     {
-        private readonly IServicebusEventSender<DrinkPurchasedEvent> _eventSender;
-        private readonly DrinkManagementDbContext _dbContext;
+        var existing = await _dbContext.Drinks.FindAsync(new object?[] { request.BeverageId },
+            cancellationToken: cancellationToken);
 
-        public CreateBeveragePurchaseCommandHandler(DrinkManagementDbContext dbContext,
-            IServicebusEventSender<DrinkPurchasedEvent> eventSender)
+        if (existing is null) return Result.Fail("Beverage not found");
+
+        var purchasedEvent = new DrinkPurchasedEvent()
         {
-            _eventSender = eventSender;
-            _dbContext = dbContext;
-        }
+            Id = Guid.NewGuid(),
+            BeverageId = request.BeverageId,
+            BeverageName = existing.Name,
+            BeveragePrice = existing.Price,
+            UserId = request.UserId,
+            PurchasedAt = DateTimeOffset.Now
+        };
 
-        public async Task<Result<Guid>> Handle(CreateDrinkPurchaseCommand request,
-            CancellationToken cancellationToken)
-        {
-            var existing = await _dbContext.Drinks.FindAsync(new object?[] { request.BeverageId },
-                cancellationToken: cancellationToken);
+        await _eventSender.Sender.SendMessageAsync(new ServiceBusMessage(new BinaryData(purchasedEvent)),
+            cancellationToken);
 
-            if (existing is null) return Result.Fail("Beverage not found");
-
-            var purchasedEvent = new DrinkPurchasedEvent()
-            {
-                Id = Guid.NewGuid(),
-                BeverageId = request.BeverageId,
-                BeverageName = existing.Name,
-                BeveragePrice = existing.Price,
-                UserId = request.UserId,
-                PurchasedAt = DateTimeOffset.Now
-            };
-
-            await _eventSender.Sender.SendMessageAsync(new ServiceBusMessage(new BinaryData(purchasedEvent)),
-                cancellationToken);
-
-            return Result.Ok(purchasedEvent.Id);
-        }
+        return Result.Ok(purchasedEvent.Id);
     }
 }

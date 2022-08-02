@@ -1,5 +1,4 @@
-﻿using Trinkhalle.Api.CustomerManagement.Domain;
-using Trinkhalle.Shared.Abstractions;
+﻿using Trinkhalle.Shared.Abstractions;
 
 namespace Trinkhalle.CustomerManagement.Domain;
 

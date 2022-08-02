@@ -10,24 +10,13 @@ using Trinkhalle.Shared.Extensions;
 
 namespace Trinkhalle.DrinkManagement.Features;
 
-public record LoadBeveragesModel
+public class LoadDrinksTrigger
 {
-    public Guid Id { get; init; }
-    public string Name { get; init; } = null!;
-    public decimal Price { get; init; }
-    public string ImageUrl { get; init; } = null!;
-    public bool Available { get; init; }
-}
-
-public record LoadBeverageQuery : IRequest<Result<IEnumerable<LoadBeveragesModel>>>;
-
-public class LoadDrinks
-{
-    private const string FunctionName = $"{nameof(LoadDrinks)}Function";
+    private const string FunctionName = $"LoadDrinksFunction";
 
     private readonly IMediator _mediator;
 
-    public LoadDrinks(IMediator mediator)
+    public LoadDrinksTrigger(IMediator mediator)
     {
         _mediator = mediator;
     }
@@ -43,29 +32,40 @@ public class LoadDrinks
 
         return await requestData.CreateResponseAsync(HttpStatusCode.OK, result);
     }
+}
 
-    public class LoadBeveragesQueryValidator : AbstractValidator<LoadBeverageQuery>
+public record LoadBeveragesModel
+{
+    public Guid Id { get; init; }
+    public string Name { get; init; } = null!;
+    public decimal Price { get; init; }
+    public string ImageUrl { get; init; } = null!;
+    public bool Available { get; init; }
+}
+
+public record LoadBeverageQuery : IRequest<Result<IEnumerable<LoadBeveragesModel>>>;
+
+public class LoadBeveragesQueryValidator : AbstractValidator<LoadBeverageQuery>
+{
+}
+
+public class LoadBeveragesQueryHandler : IRequestHandler<LoadBeverageQuery, Result<IEnumerable<LoadBeveragesModel>>>
+{
+    private readonly DrinkManagementDbContext _dbDbContext;
+
+    public LoadBeveragesQueryHandler(DrinkManagementDbContext dbContext)
     {
+        _dbDbContext = dbContext;
     }
 
-    public class LoadBeveragesQueryHandler : IRequestHandler<LoadBeverageQuery, Result<IEnumerable<LoadBeveragesModel>>>
+    public async Task<Result<IEnumerable<LoadBeveragesModel>>> Handle(LoadBeverageQuery request,
+        CancellationToken cancellationToken)
     {
-        private readonly DrinkManagementDbContext _dbDbContext;
+        var beverages = await _dbDbContext.Drinks.ToListAsync(cancellationToken: cancellationToken);
 
-        public LoadBeveragesQueryHandler(DrinkManagementDbContext dbContext)
-        {
-            _dbDbContext = dbContext;
-        }
+        var beveragesResponse = beverages.Select(b => new LoadBeveragesModel()
+            { Id = b.Id, Available = b.Available, Name = b.Name, Price = b.Price, ImageUrl = b.ImageUrl });
 
-        public async Task<Result<IEnumerable<LoadBeveragesModel>>> Handle(LoadBeverageQuery request,
-            CancellationToken cancellationToken)
-        {
-            var beverages = await _dbDbContext.Drinks.ToListAsync(cancellationToken: cancellationToken);
-
-            var beveragesResponse = beverages.Select(b => new LoadBeveragesModel()
-                { Id = b.Id, Available = b.Available, Name = b.Name, Price = b.Price, ImageUrl = b.ImageUrl });
-
-            return Result.Ok(beveragesResponse);
-        }
+        return Result.Ok(beveragesResponse);
     }
 }

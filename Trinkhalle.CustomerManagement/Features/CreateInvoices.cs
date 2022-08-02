@@ -11,17 +11,13 @@ using Trinkhalle.Shared.Infrastructure;
 
 namespace Trinkhalle.CustomerManagement.Features;
 
-public record CreateInvoicesCommand : IRequest<Result>
+public class CreateInvoicesTrigger
 {
-}
-
-public class CreateInvoices
-{
-    private const string FunctionName = $"{nameof(CreateInvoices)}Function";
+    private const string FunctionName = $"CreateInvoicesFunction";
 
     private readonly IMediator _mediator;
 
-    public CreateInvoices(IMediator mediator)
+    public CreateInvoicesTrigger(IMediator mediator)
     {
         _mediator = mediator;
     }
@@ -32,68 +28,72 @@ public class CreateInvoices
     {
         await _mediator.Send(new CreateInvoicesCommand());
     }
+}
 
-    public sealed class CreateInvoicesCommandValidator : AbstractValidator<CreateInvoicesCommand>
+public record CreateInvoicesCommand : IRequest<Result>
+{
+}
+
+public sealed class CreateInvoicesCommandValidator : AbstractValidator<CreateInvoicesCommand>
+{
+    public CreateInvoicesCommandValidator()
     {
-        public CreateInvoicesCommandValidator()
-        {
-        }
+    }
+}
+
+public class CreateInvoicesCommandHandler : IRequestHandler<CreateInvoicesCommand, Result>
+{
+    private readonly CustomerManagementDbContext _dbContext;
+    private readonly IServicebusEventSender<InvoiceCreatedEvent> _eventSender;
+
+    public CreateInvoicesCommandHandler(CustomerManagementDbContext dbContext,
+        IServicebusEventSender<InvoiceCreatedEvent> eventSender)
+    {
+        _dbContext = dbContext;
+        _eventSender = eventSender;
     }
 
-    public class CreateInvoicesCommandHandler : IRequestHandler<CreateInvoicesCommand, Result>
+    public async Task<Result> Handle(CreateInvoicesCommand request, CancellationToken cancellationToken)
     {
-        private readonly CustomerManagementDbContext _dbContext;
-        private readonly IServicebusEventSender<InvoiceCreatedEvent> _eventSender;
+        var openOrders = await _dbContext.Orders.Where(order => order.Status == OrderStatus.Open)
+            .ToListAsync(cancellationToken: cancellationToken);
+        var openOrdersByUserId = openOrders.GroupBy(order => order.UserId);
 
-        public CreateInvoicesCommandHandler(CustomerManagementDbContext dbContext,
-            IServicebusEventSender<InvoiceCreatedEvent> eventSender)
+        foreach (var value in openOrdersByUserId)
         {
-            _dbContext = dbContext;
-            _eventSender = eventSender;
+            var orders = await FilterOutOrdersThatHaveAnInvoice(value);
+
+            if (!orders.Any()) return Result.Ok();
+
+            var invoiceCreatedEvent = new InvoiceCreatedEvent()
+                { Id = Guid.NewGuid(), Orders = orders, UserId = value.Key };
+
+            await _eventSender.Sender.SendMessageAsync(new ServiceBusMessage(new BinaryData(invoiceCreatedEvent)),
+                cancellationToken);
         }
 
-        public async Task<Result> Handle(CreateInvoicesCommand request, CancellationToken cancellationToken)
-        {
-            var openOrders = await _dbContext.Orders.Where(order => order.Status == OrderStatus.Open)
-                .ToListAsync(cancellationToken: cancellationToken);
-            var openOrdersByUserId = openOrders.GroupBy(order => order.UserId);
+        return Result.Ok();
+    }
 
-            foreach (var value in openOrdersByUserId)
+    private async Task<List<OrderDto>> FilterOutOrdersThatHaveAnInvoice(IGrouping<Guid, Order> openUserOrders)
+    {
+        var orders = new List<OrderDto>();
+
+        var userInvoices =
+            await _dbContext.Invoices.Where(invoice => invoice.UserId == openUserOrders.Key)
+                .ToListAsync();
+
+        foreach (var order in openUserOrders)
+        {
+            if (userInvoices.Any(i => i.OrderIds.Contains(order.Id.ToString()))) continue;
+
+            orders.Add(new OrderDto()
             {
-                var orders = await FilterOutOrdersThatHaveAnInvoice(value);
-
-                if (!orders.Any()) return Result.Ok();
-
-                var invoiceCreatedEvent = new InvoiceCreatedEvent()
-                    { Id = Guid.NewGuid(), Orders = orders, UserId = value.Key };
-
-                await _eventSender.Sender.SendMessageAsync(new ServiceBusMessage(new BinaryData(invoiceCreatedEvent)),
-                    cancellationToken);
-            }
-
-            return Result.Ok();
+                Id = order.Id, BeverageId = order.BeverageId, BeverageName = order.BeverageName,
+                Price = order.Price
+            });
         }
 
-        private async Task<List<OrderDto>> FilterOutOrdersThatHaveAnInvoice(IGrouping<Guid, Order> openUserOrders)
-        {
-            var orders = new List<OrderDto>();
-
-            var userInvoices =
-                await _dbContext.Invoices.Where(invoice => invoice.UserId == openUserOrders.Key)
-                    .ToListAsync();
-
-            foreach (var order in openUserOrders)
-            {
-                if (userInvoices.Any(i => i.OrderIds.Contains(order.Id.ToString()))) continue;
-
-                orders.Add(new OrderDto()
-                {
-                    Id = order.Id, BeverageId = order.BeverageId, BeverageName = order.BeverageName,
-                    Price = order.Price
-                });
-            }
-
-            return orders;
-        }
+        return orders;
     }
 }

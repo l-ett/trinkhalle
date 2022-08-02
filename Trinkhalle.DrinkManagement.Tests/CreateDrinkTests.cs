@@ -17,7 +17,7 @@ public class CreateBeverageTests : IClassFixture<DrinkManagementFixture>
     public void CreateBeverageCommandValidator_CommandWithDefaultValues_ShouldHaveError()
     {
         //arrange
-        var validator = new CreateDrink.CreateDrinkCommandValidator();
+        var validator = new CreateDrinkCommandValidator();
         var command = new CreateDrinkCommand() { };
 
         //act
@@ -33,7 +33,7 @@ public class CreateBeverageTests : IClassFixture<DrinkManagementFixture>
     public void CreateBeverageCommandValidator_NegativePrice_ShouldHaveError()
     {
         //arrange
-        var validator = new CreateDrink.CreateDrinkCommandValidator();
+        var validator = new CreateDrinkCommandValidator();
         var command = new CreateDrinkCommand() { Price = -1 };
 
         //act
@@ -47,7 +47,7 @@ public class CreateBeverageTests : IClassFixture<DrinkManagementFixture>
     public void CreateBeverageCommandValidator_ValidCommand_ShouldHaveNoError()
     {
         //arrange
-        var validator = new CreateDrink.CreateDrinkCommandValidator();
+        var validator = new CreateDrinkCommandValidator();
         var command = new CreateDrinkCommand()
             { Available = true, Name = "Test", Price = 5, ImageUrl = "abc.com" };
 
@@ -62,7 +62,7 @@ public class CreateBeverageTests : IClassFixture<DrinkManagementFixture>
     public void CreateBeverageCommandValidator_PriceZero_ShouldHaveNoError()
     {
         //arrange
-        var validator = new CreateDrink.CreateDrinkCommandValidator();
+        var validator = new CreateDrinkCommandValidator();
         var command = new CreateDrinkCommand()
             { Available = true, Name = "Test", Price = 0, ImageUrl = "abc.com" };
 

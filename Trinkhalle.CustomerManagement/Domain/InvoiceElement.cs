@@ -1,4 +1,4 @@
-﻿namespace Trinkhalle.Api.CustomerManagement.Domain;
+﻿namespace Trinkhalle.CustomerManagement.Domain;
 
 public record InvoiceElement
 {

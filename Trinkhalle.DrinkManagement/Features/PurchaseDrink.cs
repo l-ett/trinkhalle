@@ -7,26 +7,20 @@ using Trinkhalle.Shared.Events;
 
 namespace Trinkhalle.DrinkManagement.Features;
 
-public record PurchaseDrinkCommand : IRequest<Result>
+public class PurchaseDrinkTrigger
 {
-    public Guid BeverageId { get; set; }
-}
-
-public class PurchaseDrink
-{
-    private const string FunctionName = $"{nameof(PurchaseDrink)}Function";
+    private const string FunctionName = $"PurchaseDrinkFunction";
 
     private readonly IMediator _mediator;
 
-    public PurchaseDrink(IMediator mediator)
+    public PurchaseDrinkTrigger(IMediator mediator)
     {
         _mediator = mediator;
     }
 
     [Function(FunctionName)]
     public async Task Run(
-        [ServiceBusTrigger(topicName: nameof(DrinkPurchasedEvent),
-            subscriptionName: FunctionName,
+        [ServiceBusTrigger(topicName: nameof(DrinkPurchasedEvent), subscriptionName: FunctionName,
             Connection = "AzureServiceBus")]
         DrinkPurchasedEvent drinkPurchasedEvent)
     {
@@ -36,38 +30,43 @@ public class PurchaseDrink
                 BeverageId = drinkPurchasedEvent.BeverageId
             });
     }
+}
 
-    public sealed class PurchaseBeverageCommandValidator : AbstractValidator<PurchaseDrinkCommand>
+public record PurchaseDrinkCommand : IRequest<Result>
+{
+    public Guid BeverageId { get; set; }
+}
+
+public sealed class PurchaseBeverageCommandValidator : AbstractValidator<PurchaseDrinkCommand>
+{
+    public PurchaseBeverageCommandValidator()
     {
-        public PurchaseBeverageCommandValidator()
-        {
-            RuleFor(x => x.BeverageId).NotEmpty();
-        }
+        RuleFor(x => x.BeverageId).NotEmpty();
+    }
+}
+
+public class PurchaseDrinkCommandHandler : IRequestHandler<PurchaseDrinkCommand, Result>
+{
+    private readonly DrinkManagementDbContext _dbDbContext;
+
+    public PurchaseDrinkCommandHandler(DrinkManagementDbContext dbContext)
+    {
+        _dbDbContext = dbContext;
     }
 
-    public class PurchaseDrinkCommandHandler : IRequestHandler<PurchaseDrinkCommand, Result>
+    public async Task<Result> Handle(PurchaseDrinkCommand request, CancellationToken cancellationToken)
     {
-        private readonly DrinkManagementDbContext _dbDbContext;
+        var drink = await _dbDbContext.Drinks.FindAsync(new object?[] { request.BeverageId },
+            cancellationToken: cancellationToken);
 
-        public PurchaseDrinkCommandHandler(DrinkManagementDbContext dbContext)
-        {
-            _dbDbContext = dbContext;
-        }
+        if (drink is null) return Result.Fail("beverage not found");
 
-        public async Task<Result> Handle(PurchaseDrinkCommand request, CancellationToken cancellationToken)
-        {
-            var drink = await _dbDbContext.Drinks.FindAsync(new object?[] { request.BeverageId },
-                cancellationToken: cancellationToken);
+        drink.Buy();
 
-            if (drink is null) return Result.Fail("beverage not found");
+        _dbDbContext.Update(drink);
 
-            drink.Buy();
+        await _dbDbContext.SaveChangesAsync(cancellationToken);
 
-            _dbDbContext.Update(drink);
-
-            await _dbDbContext.SaveChangesAsync(cancellationToken);
-
-            return Result.Ok();
-        }
+        return Result.Ok();
     }
 }

@@ -2,27 +2,19 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.Azure.Functions.Worker;
-using Trinkhalle.Api.CustomerManagement.Domain;
 using Trinkhalle.CustomerManagement.Domain;
 using Trinkhalle.CustomerManagement.Infrastructure;
 using Trinkhalle.Shared.Events;
 
 namespace Trinkhalle.CustomerManagement.Features;
 
-public record StoreInvoiceCommand : IRequest<Result>
+public class StoreInvoiceTrigger
 {
-    public Guid Id { get; set; }
-    public Guid UserId { get; set; }
-    public IEnumerable<OrderDto> Orders { get; set; } = null!;
-}
-
-public class StoreInvoice
-{
-    private const string FunctionName = $"{nameof(StoreInvoice)}Function";
+    private const string FunctionName = $"StoreInvoiceFunction";
 
     private readonly IMediator _mediator;
 
-    public StoreInvoice(IMediator mediator)
+    public StoreInvoiceTrigger(IMediator mediator)
     {
         _mediator = mediator;
     }
@@ -30,8 +22,7 @@ public class StoreInvoice
     [Function(FunctionName)]
     public async Task Run(
         [ServiceBusTrigger(topicName: nameof(InvoiceCreatedEvent),
-            subscriptionName: FunctionName,
-            Connection = "AzureServiceBus")]
+            subscriptionName: FunctionName, Connection = "AzureServiceBus")]
         InvoiceCreatedEvent invoiceCreatedEvent)
     {
         await _mediator.Send(
@@ -42,49 +33,56 @@ public class StoreInvoice
                 UserId = invoiceCreatedEvent.UserId
             });
     }
+}
 
-    public sealed class StoreInvoiceCommandValidator : AbstractValidator<StoreInvoiceCommand>
+public record StoreInvoiceCommand : IRequest<Result>
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public IEnumerable<OrderDto> Orders { get; set; } = null!;
+}
+
+public sealed class StoreInvoiceCommandValidator : AbstractValidator<StoreInvoiceCommand>
+{
+    public StoreInvoiceCommandValidator()
     {
-        public StoreInvoiceCommandValidator()
-        {
-            RuleFor(x => x.Id).NotEmpty();
-            RuleFor(x => x.UserId).NotEmpty();
-        }
+        RuleFor(x => x.Id).NotEmpty();
+        RuleFor(x => x.UserId).NotEmpty();
+    }
+}
+
+public class StoreInvoiceCommandHandler : IRequestHandler<StoreInvoiceCommand, Result>
+{
+    private readonly CustomerManagementDbContext _dbContext;
+
+    public StoreInvoiceCommandHandler(CustomerManagementDbContext dbContext)
+    {
+        _dbContext = dbContext;
     }
 
-    public class StoreInvoiceCommandHandler : IRequestHandler<StoreInvoiceCommand, Result>
+    public async Task<Result> Handle(StoreInvoiceCommand request, CancellationToken cancellationToken)
     {
-        private readonly CustomerManagementDbContext _dbContext;
+        var invoice = new Invoice(request.Id, request.UserId);
 
-        public StoreInvoiceCommandHandler(CustomerManagementDbContext dbContext)
-        {
-            _dbContext = dbContext;
-        }
+        var existingInvoice = await _dbContext.Invoices.FindAsync(new object?[] { invoice.Id },
+            cancellationToken: cancellationToken);
 
-        public async Task<Result> Handle(StoreInvoiceCommand request, CancellationToken cancellationToken)
-        {
-            var invoice = new Invoice(request.Id, request.UserId);
+        if (existingInvoice is not null) return Result.Ok();
 
-            var existingInvoice = await _dbContext.Invoices.FindAsync(new object?[] { invoice.Id },
-                cancellationToken: cancellationToken);
+        var invoiceElements = request.Orders.Select(order =>
+            new InvoiceElement()
+            {
+                Price = order.Price,
+                BeverageId = order.BeverageId,
+                BeverageName = order.BeverageName,
+                OrderId = order.Id
+            });
+        invoice.AddInvoiceElements(invoiceElements);
 
-            if (existingInvoice is not null) return Result.Ok();
+        _dbContext.Invoices.Add(invoice);
 
-            var invoiceElements = request.Orders.Select(order =>
-                new InvoiceElement()
-                {
-                    Price = order.Price,
-                    BeverageId = order.BeverageId,
-                    BeverageName = order.BeverageName,
-                    OrderId = order.Id
-                });
-            invoice.AddInvoiceElements(invoiceElements);
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
-            _dbContext.Invoices.Add(invoice);
-
-            await _dbContext.SaveChangesAsync(cancellationToken);
-
-            return Result.Ok();
-        }
+        return Result.Ok();
     }
 }

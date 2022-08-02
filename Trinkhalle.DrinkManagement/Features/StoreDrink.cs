@@ -8,30 +8,20 @@ using Trinkhalle.Shared.Events;
 
 namespace Trinkhalle.DrinkManagement.Features;
 
-public record StoreDrinkCommand : IRequest<Result>
+public class StoreDrinkTrigger
 {
-    public Guid Id { get; init; }
-    public string Name { get; init; } = null!;
-    public decimal Price { get; init; }
-    public string ImageUrl { get; init; } = null!;
-    public bool Available { get; init; }
-}
-
-public class StoreDrink
-{
-    private const string FunctionName = $"{nameof(StoreDrink)}Function";
+    private const string FunctionName = $"StoreDrinkFunction";
 
     private readonly IMediator _mediator;
 
-    public StoreDrink(IMediator mediator)
+    public StoreDrinkTrigger(IMediator mediator)
     {
         _mediator = mediator;
     }
 
     [Function(FunctionName)]
     public async Task Run(
-        [ServiceBusTrigger(topicName: nameof(DrinkCreatedEvent),
-            subscriptionName: FunctionName,
+        [ServiceBusTrigger(topicName: nameof(DrinkCreatedEvent), subscriptionName: FunctionName,
             Connection = "AzureServiceBus")]
         DrinkCreatedEvent drinkCreatedEvent)
     {
@@ -43,43 +33,52 @@ public class StoreDrink
                 Price = drinkCreatedEvent.Price
             });
     }
+}
 
-    public sealed class StoreDrinkCommandValidator : AbstractValidator<StoreDrinkCommand>
+public record StoreDrinkCommand : IRequest<Result>
+{
+    public Guid Id { get; init; }
+    public string Name { get; init; } = null!;
+    public decimal Price { get; init; }
+    public string ImageUrl { get; init; } = null!;
+    public bool Available { get; init; }
+}
+
+public sealed class StoreDrinkCommandValidator : AbstractValidator<StoreDrinkCommand>
+{
+    public StoreDrinkCommandValidator()
     {
-        public StoreDrinkCommandValidator()
-        {
-            RuleFor(x => x.Available).NotEmpty();
-            RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
-            RuleFor(x => x.Price).GreaterThan(0);
-            RuleFor(x => x.ImageUrl).NotNull();
-        }
+        RuleFor(x => x.Available).NotEmpty();
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Price).GreaterThan(0);
+        RuleFor(x => x.ImageUrl).NotNull();
+    }
+}
+
+public class StoreDrinkCommandHandler : IRequestHandler<StoreDrinkCommand, Result>
+{
+    private readonly DrinkManagementDbContext _dbContext;
+
+    public StoreDrinkCommandHandler(DrinkManagementDbContext dbContext)
+    {
+        _dbContext = dbContext;
     }
 
-    public class StoreDrinkCommandHandler : IRequestHandler<StoreDrinkCommand, Result>
+    public async Task<Result> Handle(StoreDrinkCommand request, CancellationToken cancellationToken)
     {
-        private readonly DrinkManagementDbContext _dbContext;
+        await _dbContext.Database.EnsureCreatedAsync(cancellationToken);
 
-        public StoreDrinkCommandHandler(DrinkManagementDbContext dbContext)
-        {
-            _dbContext = dbContext;
-        }
+        var beverage = new Drink(request.Id, request.Price, request.Name, request.ImageUrl, request.Available);
 
-        public async Task<Result> Handle(StoreDrinkCommand request, CancellationToken cancellationToken)
-        {
-            await _dbContext.Database.EnsureCreatedAsync(cancellationToken);
-            
-            var beverage = new Drink(request.Id, request.Price, request.Name, request.ImageUrl, request.Available);
+        var existing = await _dbContext.Drinks.FindAsync(new object?[] { beverage.Id },
+            cancellationToken: cancellationToken);
 
-            var existing = await _dbContext.Drinks.FindAsync(new object?[] { beverage.Id },
-                cancellationToken: cancellationToken);
+        if (existing is not null) return Result.Ok();
 
-            if (existing is not null) return Result.Ok();
+        _dbContext.Drinks.Add(beverage);
 
-            _dbContext.Drinks.Add(beverage);
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
-            await _dbContext.SaveChangesAsync(cancellationToken);
-
-            return Result.Ok();
-        }
+        return Result.Ok();
     }
 }

@@ -8,18 +8,13 @@ using Trinkhalle.Shared.Events;
 
 namespace Trinkhalle.CustomerManagement.Features;
 
-public record CloseOrdersCommand : IRequest<Result>
+public class CloseOrdersTrigger
 {
-    public IEnumerable<Guid> OrderIds { get; set; } = null!;
-}
-
-public class CloseOrders
-{
-    private const string FunctionName = $"{nameof(CloseOrders)}Function";
+    private const string FunctionName = $"CloseOrdersFunction";
 
     private readonly IMediator _mediator;
 
-    public CloseOrders(IMediator mediator)
+    public CloseOrdersTrigger(IMediator mediator)
     {
         _mediator = mediator;
     }
@@ -27,8 +22,7 @@ public class CloseOrders
     [Function(FunctionName)]
     public async Task Run(
         [ServiceBusTrigger(topicName: nameof(InvoiceCreatedEvent),
-            subscriptionName: FunctionName,
-            Connection = "AzureServiceBus")]
+            subscriptionName: FunctionName, Connection = "AzureServiceBus")]
         InvoiceCreatedEvent invoiceCreatedEvent)
     {
         await _mediator.Send(
@@ -37,35 +31,40 @@ public class CloseOrders
                 OrderIds = invoiceCreatedEvent.Orders.Select(o => o.Id)
             });
     }
+}
 
-    public sealed class CloseOrdersCommandValidator : AbstractValidator<CloseOrdersCommand>
+public record CloseOrdersCommand : IRequest<Result>
+{
+    public IEnumerable<Guid> OrderIds { get; set; } = null!;
+}
+
+public sealed class CloseOrdersCommandValidator : AbstractValidator<CloseOrdersCommand>
+{
+    public CloseOrdersCommandValidator()
     {
-        public CloseOrdersCommandValidator()
-        {
-        }
+    }
+}
+
+public class CloseOrdersCommandHandler : IRequestHandler<CloseOrdersCommand, Result>
+{
+    private readonly CustomerManagementDbContext _dbContext;
+
+    public CloseOrdersCommandHandler(CustomerManagementDbContext dbContext)
+    {
+        _dbContext = dbContext;
     }
 
-    public class CloseOrdersCommandHandler : IRequestHandler<CloseOrdersCommand, Result>
+    public async Task<Result> Handle(CloseOrdersCommand request, CancellationToken cancellationToken)
     {
-        private readonly CustomerManagementDbContext _dbContext;
+        var orders = await _dbContext.Orders.Where(order => request.OrderIds.Contains(order.Id))
+            .ToListAsync(cancellationToken);
 
-        public CloseOrdersCommandHandler(CustomerManagementDbContext dbContext)
-        {
-            _dbContext = dbContext;
-        }
+        orders.ForEach(order => order.CloseOrder());
 
-        public async Task<Result> Handle(CloseOrdersCommand request, CancellationToken cancellationToken)
-        {
-            var orders = await _dbContext.Orders.Where(order => request.OrderIds.Contains(order.Id))
-                .ToListAsync(cancellationToken);
+        _dbContext.Orders.UpdateRange(orders);
 
-            orders.ForEach(order => order.CloseOrder());
+        await _dbContext.SaveChangesAsync(cancellationToken);
 
-            _dbContext.Orders.UpdateRange(orders);
-
-            await _dbContext.SaveChangesAsync(cancellationToken);
-
-            return Result.Ok();
-        }
+        return Result.Ok();
     }
 }
