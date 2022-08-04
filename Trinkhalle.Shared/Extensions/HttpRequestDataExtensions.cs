@@ -20,7 +20,14 @@ public static class HttpRequestDataExtensions
 
         if (result.IsSuccess)
         {
-            await response.WriteAsJsonAsync(result.ValueOrDefault);
+            if (result.Value is Guid)
+            {
+                await response.WriteStringAsync(result.ValueOrDefault?.ToString() ?? string.Empty);
+            }
+            else
+            {
+                await response.WriteAsJsonAsync(result.ValueOrDefault);
+            }
         }
 
         return response;
